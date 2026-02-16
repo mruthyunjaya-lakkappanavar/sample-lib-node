@@ -85,4 +85,4 @@ See [github-shared-workflows](https://github.com/mruthyunjaya-lakkappanavar/gith
 
 ## License
 
-MIT
+Apache 2.0

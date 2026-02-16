@@ -1,0 +1,55 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#  CI — Matrix build across Node 18/20/22 × Ubuntu/macOS/Windows
+#
+#  Demonstrates:
+#  - Multi-version testing (Node 18, 20, 22)
+#  - Multi-OS testing (Ubuntu, macOS, Windows)
+#  - Parallel test suites (unit + integration)
+#  - Build verification
+#  - All via a single reusable workflow call (~20 lines of consumer YAML)
+#
+#  Jenkins equivalent would require:
+#  - Scripted Pipeline with matrix {} block
+#  - Multiple agent labels
+#  - Shared Library for test orchestration
+#  - ~100+ lines of Jenkinsfile
+# ═══════════════════════════════════════════════════════════════════════════════
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  ci:
+    uses: mruthyunjaya-lakkappanavar/github-shared-workflows/.github/workflows/reusable-matrix-ci.yml@main
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    with:
+      language: node
+      # ── Matrix: 3 Node versions × 3 operating systems = 9 test combinations ──
+      language_versions: '["18", "20", "22"]'
+      os_matrix: '["ubuntu-latest", "macos-latest", "windows-latest"]'
+      # ── Parallel test suites: unit + integration run as separate matrix axes ──
+      test_types: '["unit", "integration"]'
+      # ── Build verification: compile TypeScript, generate declarations ──
+      enable_build: true
+      build_script: "npm run build"
+      # ── Security scan: SAST + dependency audit ──
+      enable_security: true
+      enable_lint: true
+      coverage_threshold: 80
+      fail_fast: false
+    secrets:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

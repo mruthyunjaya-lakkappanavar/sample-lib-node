@@ -1,0 +1,49 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#  PUBLISH — Package publishing with environment gates
+#
+#  Demonstrates:
+#  - Build → Staging → Production pipeline
+#  - GitHub Environments with manual approval gates
+#  - npm package publishing with @next and @latest tags
+#  - Artifact passing between jobs
+#
+#  Jenkins equivalent would require:
+#  - Build Promotion Plugin
+#  - input step for manual approval
+#  - withCredentials() for registry auth
+#  - Shared Library for publish logic
+# ═══════════════════════════════════════════════════════════════════════════════
+
+name: Publish
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  publish:
+    uses: mruthyunjaya-lakkappanavar/github-shared-workflows/.github/workflows/reusable-publish.yml@main
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: write
+      id-token: write
+    with:
+      language: node
+      language_version: "20"
+      registry: github
+      publish_staging: true
+      publish_production: true
+      build_script: "npm run build"
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

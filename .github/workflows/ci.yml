@@ -6,7 +6,11 @@
 #  - Multi-OS testing (Ubuntu, macOS, Windows)
 #  - Parallel test suites (unit + integration)
 #  - Build verification
-#  - All via a single reusable workflow call (~20 lines of consumer YAML)
+#  - Concurrency controls (cancel-in-progress)  ← Jenkins: disableConcurrentBuilds()
+#  - Path-based triggering                       ← Jenkins: changeset condition
+#  - Scheduled builds (cron)                     ← Jenkins: cron trigger
+#  - Parameterized builds                        ← Jenkins: parameters {} block
+#  - All via a single reusable workflow call (~30 lines of consumer YAML)
 #
 #  Jenkins equivalent would require:
 #  - Scripted Pipeline with matrix {} block
@@ -20,9 +24,69 @@ name: CI
 on:
   push:
     branches: [main]
+    # ── Path filter: only run CI when source code or config changes ──
+    # Jenkins equivalent: when { changeset "src/**" }
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - "jest.config.js"
+      - ".github/workflows/ci.yml"
   pull_request:
     branches: [main]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - "jest.config.js"
+      - ".github/workflows/ci.yml"
+  # ── Scheduled build: nightly regression ──
+  # Jenkins equivalent: triggers { cron('0 2 * * *') }
+  schedule:
+    - cron: "0 2 * * 1-5"   # Weekdays at 2 AM UTC
+  # ── Parameterized build ──
+  # Jenkins equivalent: parameters { choice(name: 'NODE_VERSIONS', ...) }
   workflow_dispatch:
+    inputs:
+      node_versions:
+        description: "Node.js versions to test"
+        type: choice
+        default: '["18", "20", "22"]'
+        options:
+          - '["18", "20", "22"]'
+          - '["20"]'
+          - '["22"]'
+      os_matrix:
+        description: "Operating systems to test on"
+        type: choice
+        default: '["ubuntu-latest", "macos-latest", "windows-latest"]'
+        options:
+          - '["ubuntu-latest", "macos-latest", "windows-latest"]'
+          - '["ubuntu-latest"]'
+          - '["ubuntu-latest", "macos-latest"]'
+      test_types:
+        description: "Test suites to run"
+        type: choice
+        default: '["unit", "integration"]'
+        options:
+          - '["unit", "integration"]'
+          - '["unit"]'
+          - '["integration"]'
+      skip_lint:
+        description: "Skip linting (faster iteration)"
+        type: boolean
+        default: false
+
+# ── Concurrency: cancel redundant runs on same branch ──
+# Jenkins equivalent: properties([disableConcurrentBuilds(abortPrevious: true)])
+# GHA advantage: cancel-in-progress is built-in, no plugin needed
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -38,17 +102,14 @@ jobs:
       issues: write
     with:
       language: node
-      # ── Matrix: 3 Node versions × 3 operating systems = 9 test combinations ──
-      language_versions: '["18", "20", "22"]'
-      os_matrix: '["ubuntu-latest", "macos-latest", "windows-latest"]'
-      # ── Parallel test suites: unit + integration run as separate matrix axes ──
-      test_types: '["unit", "integration"]'
-      # ── Build verification: compile TypeScript, generate declarations ──
+      # ── Use dispatch inputs if available, otherwise defaults ──
+      language_versions: ${{ inputs.node_versions || '["18", "20", "22"]' }}
+      os_matrix: ${{ inputs.os_matrix || '["ubuntu-latest", "macos-latest", "windows-latest"]' }}
+      test_types: ${{ inputs.test_types || '["unit", "integration"]' }}
       enable_build: true
       build_script: "npm run build"
-      # ── Security scan: SAST + dependency audit ──
       enable_security: true
-      enable_lint: true
+      enable_lint: ${{ inputs.skip_lint != true }}
       coverage_threshold: 80
       fail_fast: false
     secrets:

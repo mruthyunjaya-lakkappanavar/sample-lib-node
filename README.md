@@ -1,5 +1,8 @@
 # @httpkit/client
 
+[![CI](https://github.com/mruthyunjaya-lakkappanavar/sample-lib-node/actions/workflows/ci.yml/badge.svg)](https://github.com/mruthyunjaya-lakkappanavar/sample-lib-node/actions/workflows/ci.yml)
+[![Publish](https://github.com/mruthyunjaya-lakkappanavar/sample-lib-node/actions/workflows/publish.yml/badge.svg)](https://github.com/mruthyunjaya-lakkappanavar/sample-lib-node/actions/workflows/publish.yml)
+
 A typed HTTP client library for Node.js with built-in retry logic, timeout handling, and cross-platform support.
 
 **Zero external dependencies** — uses only Node.js built-in `http`/`https` modules.
